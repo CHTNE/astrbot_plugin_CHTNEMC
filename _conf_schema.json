@@ -1,0 +1,148 @@
+{
+  "rcon_host": {
+    "description": "Minecraft RCON 主机",
+    "type": "string",
+    "default": "127.0.0.1"
+  },
+  "rcon_port": {
+    "description": "Minecraft RCON 端口",
+    "type": "int",
+    "default": 25575
+  },
+  "rcon_password": {
+    "description": "Minecraft RCON 密码",
+    "type": "string",
+    "default": "",
+    "obvious_hint": true,
+    "hint": "与 server.properties 中 rcon.password 一致；不要公开此配置。"
+  },
+  "rcon_timeout": {
+    "description": "RCON 连接与响应超时（秒）",
+    "type": "float",
+    "default": 5.0
+  },
+  "max_parallel_rcon": {
+    "description": "查询玩家详情时最大并行 RCON 请求数",
+    "type": "int",
+    "default": 8
+  },
+  "max_command_length": {
+    "description": "允许转发的 RCON 指令最大长度",
+    "type": "int",
+    "default": 500
+  },
+  "enabled_groups": {
+    "description": "启用插件的群聊 ID；留空表示所有群聊",
+    "type": "list",
+    "default": []
+  },
+  "allow_private": {
+    "description": "是否允许在私聊中使用插件",
+    "type": "bool",
+    "default": true
+  },
+  "admin_uids": {
+    "description": "插件管理员 UID；AstrBot 全局管理员也自动拥有权限",
+    "type": "list",
+    "default": []
+  },
+  "verify_player_on_bind": {
+    "description": "绑定时要求 MC 玩家在线并通过 RCON 校验",
+    "type": "bool",
+    "default": true
+  },
+  "unique_binding": {
+    "description": "是否禁止多个成员绑定同一个 MC 玩家名",
+    "type": "bool",
+    "default": true
+  },
+  "dimension_names": {
+    "description": "Minecraft 维度 ID 的显示名称",
+    "type": "dict",
+    "items": {},
+    "default": {
+      "minecraft:overworld": "主世界",
+      "minecraft:the_nether": "下界",
+      "minecraft:the_end": "末地"
+    }
+  },
+  "dynmap_url": {
+    "description": "Dynmap 网页地址",
+    "type": "string",
+    "default": "",
+    "hint": "例如 http://127.0.0.1:8123/"
+  },
+  "dynmap_worlds": {
+    "description": "Minecraft 维度 ID 到 Dynmap world 名称的映射",
+    "type": "dict",
+    "items": {},
+    "default": {
+      "minecraft:overworld": "world",
+      "minecraft:the_nether": "world_nether",
+      "minecraft:the_end": "world_the_end"
+    }
+  },
+  "dynmap_views": {
+    "description": "地图视图：显示名对应 world|mapname",
+    "type": "dict",
+    "items": {},
+    "default": {
+      "主世界": "world|flat",
+      "伪3D": "world|surface",
+      "下界": "world_nether|flat",
+      "末地": "world_the_end|flat"
+    }
+  },
+  "default_map_view": {
+    "description": "默认 Dynmap 视图显示名",
+    "type": "string",
+    "default": "主世界"
+  },
+  "dynmap_markers_url": {
+    "description": "可选的 Dynmap marker JSON URL 模板",
+    "type": "string",
+    "default": "",
+    "hint": "留空使用默认地址；自定义地址用 {world} 作为世界名占位符。"
+  },
+  "marker_radius": {
+    "description": "玩家距离点标记多少格内显示位置名",
+    "type": "float",
+    "default": 100.0
+  },
+  "wiki_api_url": {
+    "description": "中文 Minecraft Wiki MediaWiki API 地址",
+    "type": "string",
+    "default": "https://zh.minecraft.wiki/api.php"
+  },
+  "wiki_result_limit": {
+    "description": "Wiki 模糊搜索候选数量",
+    "type": "int",
+    "default": 6
+  },
+  "wiki_choice_ttl": {
+    "description": "Wiki 候选选择有效期（秒）",
+    "type": "int",
+    "default": 180
+  },
+  "http_timeout": {
+    "description": "Wiki 与 Dynmap HTTP 请求超时（秒）",
+    "type": "float",
+    "default": 10.0
+  },
+  "tpa_template": {
+    "description": "控制台发起 tpa 的命令模板",
+    "type": "string",
+    "default": "tpa {source} {target}",
+    "hint": "需与服务器传送插件的控制台语法匹配。"
+  },
+  "tpahere_template": {
+    "description": "控制台发起 tpahere 的命令模板",
+    "type": "string",
+    "default": "tpahere {source} {target}"
+  },
+  "ping_template": {
+    "description": "控制台查询绑定玩家 ping 的命令模板",
+    "type": "string",
+    "default": "ping {source}"
+  }
+}

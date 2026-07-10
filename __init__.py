@@ -1,0 +1,1 @@
+"""CHTNEMC AstrBot plugin package."""
