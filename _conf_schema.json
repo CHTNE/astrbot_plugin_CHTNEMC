@@ -166,16 +166,10 @@
     "type": "float",
     "default": 10.0
   },
-  "tpa_template": {
-    "description": "控制台发起 tpa 的命令模板",
-    "type": "string",
-    "default": "tpa {source} {target}",
-    "hint": "需与服务器传送插件的控制台语法匹配。"
-  },
-  "tpahere_template": {
-    "description": "控制台发起 tpahere 的命令模板",
-    "type": "string",
-    "default": "tpahere {source} {target}"
+  "teleport_request_ttl": {
+    "description": "tpa/tpahere 请求等待审批的有效时间（秒）",
+    "type": "int",
+    "default": 120
   },
   "ping_template": {
     "description": "控制台查询绑定玩家 ping 的命令模板",

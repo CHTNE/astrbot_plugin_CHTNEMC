@@ -29,7 +29,7 @@ from .rcon import RconClient, RconError
 from .services import HttpServices, WikiPage
 
 
-DEFAULT_REMOTE_COMMANDS = {"tp", "tpa", "tpahere", "tell", "msg", "seed", "ping"}
+DEFAULT_REMOTE_COMMANDS = {"tp", "tell", "msg", "seed", "ping"}
 PLUGIN_COMMANDS = {
     "mchelp",
     "j",
@@ -37,6 +37,10 @@ PLUGIN_COMMANDS = {
     "mcbond",
     "mcwiki",
     "mcmap",
+    "tpa",
+    "tpahere",
+    "tpaccept",
+    "tpdeny",
     "mccmdadd",
     "mccmddel",
 }
@@ -62,6 +66,7 @@ class CommandUsageError(ValueError):
 class Reply:
     text: str = ""
     image: str = ""
+    mention_uid: str = ""
 
 
 @dataclass(slots=True)
@@ -69,6 +74,19 @@ class PlayerLocation:
     name: str
     dimension: str | None
     position: tuple[float, float, float] | None
+
+
+@dataclass(slots=True)
+class TeleportRequest:
+    kind: str
+    requester_key: str
+    requester_uid: str
+    requester_name: str
+    source_player: str
+    approver_key: str
+    target_player: str
+    session: str
+    created_at: float
 
 
 class CHTNEMCPlugin(Star):
@@ -83,6 +101,7 @@ class CHTNEMCPlugin(Star):
         self.bindings: dict[str, str] = {}
         self.extra_commands: dict[str, str] = {}
         self.wiki_choices: dict[str, tuple[float, list[WikiPage]]] = {}
+        self.teleport_requests: dict[str, TeleportRequest] = {}
         self._rcon_semaphore = asyncio.Semaphore(
             max(1, int(config.get("max_parallel_rcon", 8)))
         )
@@ -119,7 +138,11 @@ class CHTNEMCPlugin(Star):
 
         if reply.image:
             yield event.image_result(reply.image)
-        if reply.text:
+        if reply.text and reply.mention_uid:
+            yield event.chain_result(
+                [Comp.At(qq=reply.mention_uid), Comp.Plain(f" {reply.text}")]
+            )
+        elif reply.text:
             yield event.plain_result(reply.text)
 
     async def _dispatch(
@@ -132,6 +155,10 @@ class CHTNEMCPlugin(Star):
             "mcbond": self._handle_bind,
             "mcwiki": self._handle_wiki,
             "mcmap": self._handle_map,
+            "tpa": self._handle_tpa,
+            "tpahere": self._handle_tpahere,
+            "tpaccept": self._handle_tpaccept,
+            "tpdeny": self._handle_tpdeny,
             "mccmdadd": self._handle_command_add,
             "mccmddel": self._handle_command_del,
         }
@@ -241,7 +268,9 @@ class CHTNEMCPlugin(Star):
             ),
             "tp": "/tp <目标> 或 /tp <玩家> <目标> — 转发传送指令；单目标语法需要先绑定。目标可用群聊艾特。",
             "tpa": "/tpa <玩家> — 以绑定玩家为发起者请求传送；目标可用群聊艾特。",
-            "tpahere": "/tpahere <玩家> — 邀请目标传送到绑定玩家；目标可用群聊艾特。",
+            "tpahere": "/tpahere <玩家> — 请求对方传送到自己；目标可用群聊艾特。",
+            "tpaccept": "/tpaccept — 接受当前会话中发给自己的传送请求，随后执行原版 /tp。",
+            "tpdeny": "/tpdeny — 拒绝当前会话中发给自己的传送请求。",
             "tell": "/tell <玩家> <消息>（或 /msg）— 向 MC 玩家发送私信；玩家可用群聊艾特。",
             "seed": "/seed — 查看世界种子（服务端权限仍由 RCON 控制）。",
             "ping": "/ping [玩家] — 查询绑定玩家或指定玩家的延迟；未绑定且无参数时显示 RCON 往返延迟。",
@@ -257,7 +286,8 @@ class CHTNEMCPlugin(Star):
             "CHTNEMC · Minecraft 服务器助手",
             "查询：/j /mctime /mcwiki /mcmap",
             "绑定：/mcbond",
-            "服务器指令：/tp /tpa /tpahere /tell /msg /seed /ping",
+            "传送请求：/tpa /tpahere /tpaccept /tpdeny",
+            "服务器指令：/tp /tell /msg /seed /ping",
             "管理：/mccmdadd /mccmddel",
             "发送 /mchelp <指令名> 查看具体用法。",
         ]
@@ -515,6 +545,125 @@ class CHTNEMCPlugin(Star):
         await self._save_commands()
         return Reply(text=f"已删除额外指令 /{command}。")
 
+    def _teleport_request_key(self, event: AstrMessageEvent, uid: str) -> str:
+        return f"{event.unified_msg_origin}|{self._binding_key(event, uid)}"
+
+    def _find_bound_target(
+        self, event: AstrMessageEvent, argument: str
+    ) -> tuple[str, str]:
+        argument = argument.strip()
+        if not argument or len(argument.split()) != 1:
+            raise CommandUsageError("目标必须是一个已绑定的 MC 玩家名或群聊艾特。")
+
+        mention = MENTION_RE.fullmatch(argument)
+        if mention:
+            uid = mention.group(1)
+            player = self.bindings.get(self._binding_key(event, uid))
+            if not player:
+                raise CommandUsageError("被艾特的成员尚未绑定 MC 玩家名。")
+            return uid, player
+
+        if not valid_username(argument):
+            raise CommandUsageError("目标必须是一个已绑定的 MC 玩家名或群聊艾特。")
+        platform_prefix = f"{event.get_platform_name()}:"
+        matches = [
+            (key[len(platform_prefix) :], player)
+            for key, player in self.bindings.items()
+            if key.startswith(platform_prefix) and player.casefold() == argument.casefold()
+        ]
+        if not matches:
+            raise CommandUsageError(f"玩家 {argument} 尚未绑定到当前平台的成员。")
+        if len(matches) > 1:
+            raise CommandUsageError(f"玩家 {argument} 对应多个成员，请直接艾特目标成员。")
+        return matches[0]
+
+    async def _create_teleport_request(
+        self, event: AstrMessageEvent, args: str, kind: str
+    ) -> Reply:
+        source_player = self.bindings.get(self._binding_key(event))
+        if not source_player:
+            raise CommandUsageError(f"/{kind} 需要先用 /mcbond 绑定 MC 玩家。")
+        target_uid, target_player = self._find_bound_target(event, args)
+        if target_uid == str(event.get_sender_id()):
+            raise CommandUsageError("不能向自己发起传送请求。")
+        if target_player.casefold() == source_player.casefold():
+            raise CommandUsageError("发起者和目标不能绑定到同一个 MC 玩家。")
+
+        ttl = max(10, int(self.config.get("teleport_request_ttl", 120)))
+        now = time.monotonic()
+        self.teleport_requests = {
+            key: pending
+            for key, pending in self.teleport_requests.items()
+            if now - pending.created_at <= ttl
+        }
+        request = TeleportRequest(
+            kind=kind,
+            requester_key=self._binding_key(event),
+            requester_uid=str(event.get_sender_id()),
+            requester_name=event.get_sender_name() or str(event.get_sender_id()),
+            source_player=source_player,
+            approver_key=self._binding_key(event, target_uid),
+            target_player=target_player,
+            session=event.unified_msg_origin,
+            created_at=now,
+        )
+        self.teleport_requests[self._teleport_request_key(event, target_uid)] = request
+        if kind == "tpa":
+            action = f"请求传送到你（{source_player} → {target_player}）"
+        else:
+            action = f"请求你传送过去（{target_player} → {source_player}）"
+        return Reply(
+            text=(
+                f"{request.requester_name} {action}。请在 {ttl} 秒内发送 "
+                "/tpaccept 接受或 /tpdeny 拒绝。"
+            ),
+            mention_uid=target_uid,
+        )
+
+    async def _handle_tpa(self, event: AstrMessageEvent, args: str) -> Reply:
+        return await self._create_teleport_request(event, args, "tpa")
+
+    async def _handle_tpahere(self, event: AstrMessageEvent, args: str) -> Reply:
+        return await self._create_teleport_request(event, args, "tpahere")
+
+    def _take_teleport_request(self, event: AstrMessageEvent) -> TeleportRequest:
+        key = self._teleport_request_key(event, str(event.get_sender_id()))
+        request = self.teleport_requests.pop(key, None)
+        if not request:
+            raise CommandUsageError("当前会话中没有等待你审批的传送请求。")
+        ttl = max(10, int(self.config.get("teleport_request_ttl", 120)))
+        if time.monotonic() - request.created_at > ttl:
+            raise CommandUsageError("传送请求已经过期，请让对方重新发起。")
+        current_target = self.bindings.get(request.approver_key)
+        current_source = self.bindings.get(request.requester_key)
+        if current_target != request.target_player or current_source != request.source_player:
+            raise CommandUsageError("请求双方的玩家绑定已经改变，请重新发起传送请求。")
+        return request
+
+    async def _handle_tpaccept(self, event: AstrMessageEvent, args: str) -> Reply:
+        if args:
+            raise CommandUsageError("用法：/tpaccept")
+        request = self._take_teleport_request(event)
+        if request.kind == "tpa":
+            moving, destination = request.source_player, request.target_player
+        else:
+            moving, destination = request.target_player, request.source_player
+        output = await self._execute(f"tp {moving} {destination}")
+        result = output or "服务端未返回文本。"
+        return Reply(
+            text=f"已接受传送请求：{moving} → {destination}\n{result}",
+            mention_uid=request.requester_uid,
+        )
+
+    async def _handle_tpdeny(self, event: AstrMessageEvent, args: str) -> Reply:
+        if args:
+            raise CommandUsageError("用法：/tpdeny")
+        request = self._take_teleport_request(event)
+        return Reply(
+            text=f"已拒绝 {request.requester_name} 的 /{request.kind} 请求。",
+            mention_uid=request.requester_uid,
+        )
+
     async def _handle_remote_command(
         self, event: AstrMessageEvent, command: str, args: str
     ) -> Reply:
@@ -530,17 +679,6 @@ class CHTNEMCPlugin(Star):
                 if not sender:
                     raise CommandUsageError("这种 /tp 玩家语法需要先用 /mcbond 绑定 MC 玩家。")
                 resolved = f"{sender} {resolved}"
-        elif command in {"tpa", "tpahere"} and len(tokens) == 1:
-            if not sender:
-                raise CommandUsageError(f"/{command} 需要先用 /mcbond 绑定 MC 玩家。")
-            template = str(
-                self.config.get(
-                    f"{command}_template", f"{command} {{source}} {{target}}"
-                )
-            )
-            rendered = template.format(source=sender, target=tokens[0])
-            output = await self._execute(rendered)
-            return Reply(text=output or "指令已发送，服务端未返回文本。")
         elif command == "ping" and not tokens:
             if sender:
                 template = str(self.config.get("ping_template", "ping {source}"))

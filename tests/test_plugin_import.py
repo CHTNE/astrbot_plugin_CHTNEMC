@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 import types
@@ -30,6 +31,22 @@ class _Filter:
 class _Star:
     def __init__(self, context):
         self.context = context
+
+
+class _Event:
+    def __init__(self, uid: str, name: str, session: str = "qq:GroupMessage:42"):
+        self.uid = uid
+        self.name = name
+        self.unified_msg_origin = session
+
+    def get_platform_name(self):
+        return "qq"
+
+    def get_sender_id(self):
+        return self.uid
+
+    def get_sender_name(self):
+        return self.name
 
 
 def install_astrbot_stubs():
@@ -90,6 +107,44 @@ class PluginImportTests(unittest.TestCase):
                 plugin._configured_map_views(),
                 {"主世界": "survival|flat", "伪3D": "survival|surface"},
             )
+        finally:
+            sys.path.pop(0)
+
+    def test_teleport_requests_execute_vanilla_tp_only_after_acceptance(self):
+        install_astrbot_stubs()
+        sys.path.insert(0, str(Path.cwd().parent))
+        try:
+            from astrbot_plugin_CHTNEMC.main import CHTNEMCPlugin
+
+            plugin = object.__new__(CHTNEMCPlugin)
+            plugin.config = {"teleport_request_ttl": 120}
+            plugin.bindings = {"qq:100": "Alice", "qq:200": "Bob"}
+            plugin.teleport_requests = {}
+            executed = []
+
+            async def execute(command):
+                executed.append(command)
+                return "Teleported"
+
+            plugin._execute = execute
+            requester = _Event("100", "Requester")
+            approver = _Event("200", "Approver")
+
+            async def scenario():
+                reply = await plugin._handle_tpa(
+                    requester, "__ASTR_AT_200__"
+                )
+                self.assertEqual(reply.mention_uid, "200")
+                self.assertEqual(executed, [])
+                await plugin._handle_tpaccept(approver, "")
+                self.assertEqual(executed, ["tp Alice Bob"])
+
+                await plugin._handle_tpahere(requester, "Bob")
+                self.assertEqual(executed, ["tp Alice Bob"])
+                await plugin._handle_tpaccept(approver, "")
+                self.assertEqual(executed[-1], "tp Bob Alice")
+
+            asyncio.run(scenario())
         finally:
             sys.path.pop(0)
 

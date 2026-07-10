@@ -2,7 +2,7 @@ name: astrbot_plugin_chtnemc
 display_name: CHTNEMC Minecraft 服务器助手
 desc: 通过 RCON 管理 Minecraft 服务器，提供玩家位置、时间、绑定、中文 Wiki 与 Dynmap 地图功能。
 short_desc: 群聊中的 Minecraft RCON、Wiki 与 Dynmap 助手。
-version: v1.0.1
+version: v1.1.0
 author: CHTNEMC
 repo: https://github.com/CHTNE/astrbot_plugin_CHTNEMC
 astrbot_version: ">=4.9.2,<5"

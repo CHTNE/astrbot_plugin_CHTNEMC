@@ -10,7 +10,9 @@
 - `/mcbond <玩家名>`：按聊天平台 UID 绑定 MC 玩家名。
 - `/mcwiki <关键词>`：模糊搜索中文 Minecraft Wiki；使用 `/mcwiki <序号>` 选择候选。
 - `/mcmap [视图] [x] [z] [缩放]`：渲染配置的 Dynmap 视图；`/mcmap list` 查看视图名。
-- `/tp`、`/tpa`、`/tpahere`、`/tell`、`/msg`、`/seed`、`/ping`：代理服务器指令，参数中的群聊艾特会转换为成员绑定的玩家名。
+- `/tpa <玩家>`、`/tpahere <玩家>`：在聊天插件中发起传送请求，目标可使用群聊艾特。
+- `/tpaccept`、`/tpdeny`：目标成员接受或拒绝传送请求；仅接受后才通过 RCON 执行原版 `/tp`。
+- `/tp`、`/tell`、`/msg`、`/seed`、`/ping`：代理服务器指令，参数中的群聊艾特会转换为成员绑定的玩家名。
 - `/mccmdadd <指令> [admin]`：管理员添加允许的 RCON 指令。省略 `admin` 时群成员可用。
 - `/mccmddel <指令>`：管理员删除额外指令。
 
@@ -38,7 +40,7 @@ rcon.password=请使用足够长的随机密码
 
 `dynmap_views` 中每个视图的值格式为 `world|mapname`。例如 `world|flat` 是俯视图，`world|surface` 通常是伪 3D 视图，实际 mapname 以你的 Dynmap 配置为准。配置项使用 `overworld`、`overworld_3d`、`nether`、`end` 作为稳定键，聊天指令中显示为“主世界”“伪3D”“下界”“末地”。
 
-`tpa`、`tpahere` 和 `ping` 并非原版 Java 版服务端指令。默认模板按常见服务端插件的控制台双玩家语法生成；如果使用 EssentialsX 等插件，请根据其控制台语法修改相应模板。
+`tpa` 和 `tpahere` 的请求、绑定校验、会话隔离、超时及审批全部由本插件完成，不依赖 EssentialsX 等服务端传送插件。审批者接受后，插件只向服务器发送原版 `tp <玩家> <目标>`。`ping` 仍可能需要服务端提供相应指令；未绑定时 `/ping` 仅测量 RCON 往返延迟。
 
 绑定默认要求目标玩家在线，因为原版 RCON 无法可靠验证所有离线玩家。可关闭 `verify_player_on_bind` 允许离线绑定。
 
