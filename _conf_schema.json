@@ -58,12 +58,23 @@
   },
   "dimension_names": {
     "description": "Minecraft 维度 ID 的显示名称",
-    "type": "dict",
-    "items": {},
-    "default": {
-      "minecraft:overworld": "主世界",
-      "minecraft:the_nether": "下界",
-      "minecraft:the_end": "末地"
+    "type": "object",
+    "items": {
+      "overworld": {
+        "description": "主世界显示名称",
+        "type": "string",
+        "default": "主世界"
+      },
+      "nether": {
+        "description": "下界显示名称",
+        "type": "string",
+        "default": "下界"
+      },
+      "end": {
+        "description": "末地显示名称",
+        "type": "string",
+        "default": "末地"
+      }
     }
   },
   "dynmap_url": {
@@ -74,23 +85,49 @@
   },
   "dynmap_worlds": {
     "description": "Minecraft 维度 ID 到 Dynmap world 名称的映射",
-    "type": "dict",
-    "items": {},
-    "default": {
-      "minecraft:overworld": "world",
-      "minecraft:the_nether": "world_nether",
-      "minecraft:the_end": "world_the_end"
+    "type": "object",
+    "items": {
+      "overworld": {
+        "description": "主世界的 Dynmap world 名称",
+        "type": "string",
+        "default": "world"
+      },
+      "nether": {
+        "description": "下界的 Dynmap world 名称",
+        "type": "string",
+        "default": "world_nether"
+      },
+      "end": {
+        "description": "末地的 Dynmap world 名称",
+        "type": "string",
+        "default": "world_the_end"
+      }
     }
   },
   "dynmap_views": {
     "description": "地图视图：显示名对应 world|mapname",
-    "type": "dict",
-    "items": {},
-    "default": {
-      "主世界": "world|flat",
-      "伪3D": "world|surface",
-      "下界": "world_nether|flat",
-      "末地": "world_the_end|flat"
+    "type": "object",
+    "items": {
+      "overworld": {
+        "description": "主世界俯视图（world|mapname）",
+        "type": "string",
+        "default": "world|flat"
+      },
+      "overworld_3d": {
+        "description": "主世界伪 3D 视图（world|mapname）",
+        "type": "string",
+        "default": "world|surface"
+      },
+      "nether": {
+        "description": "下界视图（world|mapname）",
+        "type": "string",
+        "default": "world_nether|flat"
+      },
+      "end": {
+        "description": "末地视图（world|mapname）",
+        "type": "string",
+        "default": "world_the_end|flat"
+      }
     }
   },
   "default_map_view": {

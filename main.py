@@ -41,6 +41,17 @@ PLUGIN_COMMANDS = {
     "mccmddel",
 }
 MENTION_RE = re.compile(r"__ASTR_AT_(.+?)__")
+DIMENSION_CONFIG_KEYS = {
+    "minecraft:overworld": "overworld",
+    "minecraft:the_nether": "nether",
+    "minecraft:the_end": "end",
+}
+MAP_VIEW_LABELS = {
+    "overworld": "主世界",
+    "overworld_3d": "伪3D",
+    "nether": "下界",
+    "end": "末地",
+}
 
 
 class CommandUsageError(ValueError):
@@ -271,10 +282,11 @@ class CHTNEMCPlugin(Star):
                 marker_tasks[world] = asyncio.create_task(self._markers(world))
 
         lines = [f"当前在线 {online.online}{maximum} 人："]
-        dimensions = dict(self.config.get("dimension_names", {}))
         for location in locations:
-            dimension_name = dimensions.get(
-                location.dimension, location.dimension or "未知维度"
+            dimension_name = self._dimension_config_value(
+                "dimension_names",
+                location.dimension,
+                location.dimension or "未知维度",
             )
             if not location.position:
                 lines.append(f"- {location.name} {dimension_name}：坐标未知")
@@ -307,8 +319,28 @@ class CHTNEMCPlugin(Star):
         return PlayerLocation(player, parse_dimension(dim_result), parse_position(pos_result))
 
     def _dynmap_world(self, dimension: str | None) -> str | None:
-        worlds = dict(self.config.get("dynmap_worlds", {}))
-        return str(worlds.get(dimension, "")) or None
+        value = self._dimension_config_value("dynmap_worlds", dimension, "")
+        return str(value) or None
+
+    def _dimension_config_value(
+        self, field: str, dimension: str | None, fallback: str
+    ) -> str:
+        values = dict(self.config.get(field, {}))
+        # Accept both v1.0.0's full dimension IDs and v1.0.1's object keys.
+        if dimension in values:
+            return str(values[dimension])
+        alias = DIMENSION_CONFIG_KEYS.get(dimension or "")
+        return str(values.get(alias, fallback))
+
+    def _configured_map_views(self) -> dict[str, str]:
+        values = dict(self.config.get("dynmap_views", {}))
+        # Stable ASCII schema keys avoid punctuation/non-ASCII field-ID issues in WebUI,
+        # while commands continue to expose friendly Chinese view names.
+        return {
+            MAP_VIEW_LABELS.get(str(key), str(key)): str(value)
+            for key, value in values.items()
+            if str(value).strip()
+        }
 
     async def _markers(self, world: str):
         return await self.http.fetch_dynmap_markers(
@@ -396,7 +428,7 @@ class CHTNEMCPlugin(Star):
         base_url = str(self.config.get("dynmap_url", "")).strip()
         if not base_url:
             raise CommandUsageError("尚未配置 dynmap_url。")
-        views = dict(self.config.get("dynmap_views", {}))
+        views = self._configured_map_views()
         if not views:
             raise CommandUsageError("尚未配置 dynmap_views。")
         try:

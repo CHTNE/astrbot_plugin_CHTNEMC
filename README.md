@@ -36,7 +36,7 @@ rcon.password=请使用足够长的随机密码
 2. `enabled_groups`（留空表示全部群聊）和可选的 `admin_uids`。
 3. 如需地图功能，填写 `dynmap_url`，并按实际世界名调整 `dynmap_worlds` 与 `dynmap_views`。
 
-`dynmap_views` 的值格式为 `world|mapname`。例如 `world|flat` 是俯视图，`world|surface` 通常是伪 3D 视图，实际 mapname 以你的 Dynmap 配置为准。
+`dynmap_views` 中每个视图的值格式为 `world|mapname`。例如 `world|flat` 是俯视图，`world|surface` 通常是伪 3D 视图，实际 mapname 以你的 Dynmap 配置为准。配置项使用 `overworld`、`overworld_3d`、`nether`、`end` 作为稳定键，聊天指令中显示为“主世界”“伪3D”“下界”“末地”。
 
 `tpa`、`tpahere` 和 `ping` 并非原版 Java 版服务端指令。默认模板按常见服务端插件的控制台双玩家语法生成；如果使用 EssentialsX 等插件，请根据其控制台语法修改相应模板。
 

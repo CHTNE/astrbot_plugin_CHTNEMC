@@ -70,6 +70,26 @@ class PluginImportTests(unittest.TestCase):
 
             self.assertTrue(issubclass(CHTNEMCPlugin, _Star))
             self.assertIn("mchelp", PLUGIN_COMMANDS)
+            plugin = object.__new__(CHTNEMCPlugin)
+            plugin.config = {
+                "dimension_names": {"overworld": "主世界"},
+                "dynmap_worlds": {"overworld": "survival"},
+                "dynmap_views": {
+                    "overworld": "survival|flat",
+                    "overworld_3d": "survival|surface",
+                },
+            }
+            self.assertEqual(
+                plugin._dimension_config_value(
+                    "dimension_names", "minecraft:overworld", "未知"
+                ),
+                "主世界",
+            )
+            self.assertEqual(plugin._dynmap_world("minecraft:overworld"), "survival")
+            self.assertEqual(
+                plugin._configured_map_views(),
+                {"主世界": "survival|flat", "伪3D": "survival|surface"},
+            )
         finally:
             sys.path.pop(0)
 
