@@ -52,6 +52,9 @@ class _Event:
 def install_astrbot_stubs():
     astrbot = types.ModuleType("astrbot")
     aiohttp = types.ModuleType("aiohttp")
+    pillow = types.ModuleType("PIL")
+    pillow.Image = types.SimpleNamespace(Image=object)
+    pillow.ImageDraw = types.SimpleNamespace()
     api = types.ModuleType("astrbot.api")
     components = types.ModuleType("astrbot.api.message_components")
     event = types.ModuleType("astrbot.api.event")
@@ -74,6 +77,7 @@ def install_astrbot_stubs():
             "astrbot.api.event": event,
             "astrbot.api.star": star,
             "aiohttp": aiohttp,
+            "PIL": pillow,
         }
     )
 

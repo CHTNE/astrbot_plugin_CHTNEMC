@@ -40,7 +40,11 @@ rcon.password=请使用足够长的随机密码
 
 `dynmap_views` 中每个视图的值格式为 `world|mapname`。例如 `world|flat` 是俯视图，`world|surface` 通常是伪 3D 视图，实际 mapname 以你的 Dynmap 配置为准。配置项使用 `overworld`、`overworld_3d`、`nether`、`end` 作为稳定键，聊天指令中显示为“主世界”“伪3D”“下界”“末地”。
 
+`/mcmap` 会由 AstrBot 所在机器直接下载 Dynmap 瓦片并拼图，不再使用远程 HTML 截图，因此支持内网 Dynmap，也不会在瓦片加载前截出黑屏。普通内置 Web 服务器无需额外设置；使用外置 Web 服务器、MySQL/PHP 瓦片接口或反向代理时，可配置 `dynmap_config_url` 和 `dynmap_tiles_url`。后者支持 `{world}`、`{tile}` 占位符。
+
 `tpa` 和 `tpahere` 的请求、绑定校验、会话隔离、超时及审批全部由本插件完成，不依赖 EssentialsX 等服务端传送插件。审批者接受后，插件只向服务器发送原版 `tp <玩家> <目标>`。`ping` 仍可能需要服务端提供相应指令；未绑定时 `/ping` 仅测量 RCON 往返延迟。
+
+`/j` 的坐标始终来自 RCON 查询到的玩家实体 `Pos`，最多保留两位小数；Dynmap marker 只用于在坐标后追加位置名称，不参与坐标计算。
 
 绑定默认要求目标玩家在线，因为原版 RCON 无法可靠验证所有离线玩家。可关闭 `verify_player_on_bind` 允许离线绑定。
 

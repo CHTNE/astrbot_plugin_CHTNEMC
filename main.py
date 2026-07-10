@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import html
-import math
 import re
 import shlex
 import time
@@ -17,6 +15,7 @@ from astrbot.api.star import Context, Star
 
 from .core import (
     describe_daytime,
+    format_player_position,
     nearest_marker,
     normalize_command,
     parse_daytime,
@@ -321,7 +320,9 @@ class CHTNEMCPlugin(Star):
             if not location.position:
                 lines.append(f"- {location.name} {dimension_name}：坐标未知")
                 continue
-            x, y, z = location.position
+            player_position = location.position
+            x, _, z = player_position
+            coordinates = format_player_position(player_position)
             suffix = ""
             world = self._dynmap_world(location.dimension)
             if world in marker_tasks:
@@ -337,7 +338,6 @@ class CHTNEMCPlugin(Star):
                         suffix = f"（{label}）"
                 except Exception as exc:
                     logger.warning("Unable to read Dynmap markers for %s: %s", world, exc)
-            coordinates = f"{math.floor(x)} {math.floor(y)} {math.floor(z)}"
             lines.append(f"- {location.name} {dimension_name}：{coordinates}{suffix}")
         return Reply(text="\n".join(lines))
 
@@ -477,36 +477,48 @@ class CHTNEMCPlugin(Star):
         view_name = requested or view_names.get(default_requested.casefold()) or next(iter(views))
         view_value = str(views[view_name])
         world, _, map_name = view_value.partition("|")
-        query: dict[str, str] = {"worldname": world}
-        if map_name:
-            query["mapname"] = map_name
-        labels = ("x", "z", "zoom")
-        for label, value in zip(labels, parts):
+        if len(parts) > 3:
+            raise CommandUsageError("用法：/mcmap [视图] [x] [z] [缩放]")
+        parsed: list[float] = []
+        for label, value in zip(("x", "z", "zoom"), parts):
             try:
-                float(value)
+                parsed.append(float(value))
             except ValueError as exc:
                 raise CommandUsageError(f"{label} 必须是数字。") from exc
-            query[label] = value
-        url = self._with_query(base_url, query)
-        iframe = f"""
-        <div style="width:960px;height:600px;overflow:hidden;background:#15191d;position:relative">
-          <iframe src="{html.escape(url, quote=True)}" title="Dynmap"
-            style="width:960px;height:600px;border:0" loading="eager"></iframe>
-          <div style="position:absolute;left:14px;top:14px;padding:7px 12px;color:white;
-            background:rgba(0,0,0,.65);border-radius:6px;font:16px sans-serif">
-            {html.escape(view_name)}
-          </div>
-        </div>
-        """
+        center_x = parsed[0] if len(parsed) >= 1 else None
+        center_z = parsed[1] if len(parsed) >= 2 else None
+        zoom_out = int(parsed[2]) if len(parsed) >= 3 else int(
+            self.config.get("dynmap_default_zoom", 0)
+        )
         try:
-            image_url = await self.html_render(
-                iframe,
-                {},
-                options={"type": "png", "full_page": True, "animations": "disabled"},
+            image_path = await self.http.render_dynmap(
+                base_url=base_url,
+                world_name=world,
+                map_name=map_name,
+                center_x=center_x,
+                center_z=center_z,
+                zoom_out=zoom_out,
+                width=min(
+                    2048,
+                    max(256, int(self.config.get("dynmap_render_width", 960))),
+                ),
+                height=min(
+                    2048,
+                    max(256, int(self.config.get("dynmap_render_height", 600))),
+                ),
+                config_url=str(self.config.get("dynmap_config_url", "")),
+                tiles_url_template=str(self.config.get("dynmap_tiles_url", "")),
             )
-            return Reply(image=image_url)
+            return Reply(image=image_path)
         except Exception as exc:
-            logger.warning("Dynmap screenshot failed: %s", exc)
+            logger.warning("Dynmap tile rendering failed: %s", exc)
+            query: dict[str, str] = {"worldname": world, "mapname": map_name}
+            if center_x is not None:
+                query["x"] = str(center_x)
+            if center_z is not None:
+                query["z"] = str(center_z)
+            query["zoom"] = str(zoom_out)
+            url = self._with_query(base_url, query)
             return Reply(text=f"Dynmap 渲染失败，可直接打开：{url}\n错误：{exc}")
 
     @staticmethod

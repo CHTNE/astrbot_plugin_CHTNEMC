@@ -67,6 +67,20 @@ def parse_position(response: str) -> tuple[float, float, float] | None:
         return None
 
 
+def format_coordinate(value: float, precision: int = 2) -> str:
+    """Format the actual entity coordinate without replacing it with block/marker data."""
+    rounded = round(value, precision)
+    if rounded == 0:
+        rounded = 0.0
+    if rounded.is_integer():
+        return str(int(rounded))
+    return f"{rounded:.{precision}f}".rstrip("0").rstrip(".")
+
+
+def format_player_position(position: tuple[float, float, float]) -> str:
+    return " ".join(format_coordinate(value) for value in position)
+
+
 def parse_dimension(response: str) -> str | None:
     match = re.search(r'"((?:[a-z0-9_.-]+:)?[a-z0-9_./-]+)"', response, re.I)
     if match:
@@ -178,3 +192,44 @@ def nearest_marker(
     candidates = ((marker_distance(marker, x, z), marker.label) for marker in markers)
     distance, label = min(candidates, default=(math.inf, None), key=lambda item: item[0])
     return label if label and distance <= maximum_distance else None
+
+
+def dynmap_project_to_pixels(
+    world_to_map: list[float],
+    x: float,
+    y: float,
+    z: float,
+    tile_size: int,
+    zoom_out: int,
+) -> tuple[float, float]:
+    """Apply Dynmap's HDProjection and return pixels at a zoom-out level."""
+    if len(world_to_map) < 6:
+        raise ValueError("Dynmap worldtomap matrix must contain at least 6 values")
+    projected_x = (
+        world_to_map[0] * x + world_to_map[1] * y + world_to_map[2] * z
+    )
+    projected_y = (
+        world_to_map[3] * x + world_to_map[4] * y + world_to_map[5] * z
+    )
+    scale = 1 << max(0, zoom_out)
+    return projected_x / scale, (tile_size - projected_y) / scale
+
+
+def dynmap_hd_tile_name(
+    prefix: str,
+    tile_x: int,
+    tile_y: int,
+    zoom_out: int,
+    image_format: str = "png",
+    day: bool = False,
+) -> str:
+    """Build the flat-file tile name used by Dynmap's HDMapType."""
+    scale = 1 << max(0, zoom_out)
+    source_x = scale * tile_x
+    source_y = -(scale * tile_y)  # HDMapType inverts Y for stored tiles.
+    directory = f"{prefix}{'_day' if day else ''}".strip("/")
+    zoom_prefix = "z" * max(0, zoom_out)
+    if zoom_prefix:
+        zoom_prefix += "_"
+    filename = f"{zoom_prefix}{source_x}_{source_y}.{image_format}"
+    return f"{directory}/{source_x // 32}_{source_y // 32}/{filename}"

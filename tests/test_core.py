@@ -5,6 +5,9 @@ import unittest
 
 from core import (
     describe_daytime,
+    dynmap_hd_tile_name,
+    dynmap_project_to_pixels,
+    format_player_position,
     marker_distance,
     markers_from_dynmap,
     nearest_marker,
@@ -39,6 +42,10 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual(
             parse_dimension('M42_Thyphein has the following entity data: "minecraft:overworld"'),
             "minecraft:overworld",
+        )
+        self.assertEqual(
+            format_player_position((-120.25, 68.0, -235.75)),
+            "-120.25 68 -235.75",
         )
 
     def test_time(self):
@@ -84,6 +91,11 @@ class MarkerTests(unittest.TestCase):
 
     def test_point_marker(self):
         self.assertEqual(nearest_marker(self.markers, -120, -235, 100), "刷怪塔")
+        # Marker coordinates/name must never replace the RCON player position.
+        self.assertEqual(
+            format_player_position((-120.25, 68.0, -235.75)),
+            "-120.25 68 -235.75",
+        )
 
     def test_circle_and_area(self):
         circle = next(marker for marker in self.markers if marker.label == "出生区")
@@ -91,6 +103,23 @@ class MarkerTests(unittest.TestCase):
         self.assertEqual(marker_distance(circle, 25, 25), 0)
         self.assertEqual(marker_distance(area, 150, 150), 0)
         self.assertTrue(math.isinf(marker_distance(area, 250, 250)))
+
+
+class DynmapTileTests(unittest.TestCase):
+    def test_hd_projection_and_tile_names(self):
+        matrix = [4.0, 0.0, 0.0, 0.0, 0.0, -4.0, 0.0, 1.0, 0.0]
+        self.assertEqual(
+            dynmap_project_to_pixels(matrix, 32, 64, 64, 128, 0),
+            (128.0, 384.0),
+        )
+        self.assertEqual(
+            dynmap_hd_tile_name("flat", 1, 3, 0),
+            "flat/0_-1/1_-3.png",
+        )
+        self.assertEqual(
+            dynmap_hd_tile_name("flat", 0, 1, 1),
+            "flat/0_-1/z_0_-2.png",
+        )
 
 
 if __name__ == "__main__":

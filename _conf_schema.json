@@ -141,6 +141,33 @@
     "default": "",
     "hint": "留空使用默认地址；自定义地址用 {world} 作为世界名占位符。"
   },
+  "dynmap_config_url": {
+    "description": "可选的 Dynmap configuration JSON 地址",
+    "type": "string",
+    "default": "",
+    "hint": "留空使用 <dynmap_url>/up/configuration；外置 Web 服务器可填写 standalone 配置接口。"
+  },
+  "dynmap_tiles_url": {
+    "description": "可选的 Dynmap 瓦片 URL 模板",
+    "type": "string",
+    "default": "",
+    "hint": "留空读取 Dynmap configuration；自定义模板可使用 {world} 和 {tile}。"
+  },
+  "dynmap_default_zoom": {
+    "description": "地图默认缩小级别（0 最清晰）",
+    "type": "int",
+    "default": 0
+  },
+  "dynmap_render_width": {
+    "description": "渲染地图宽度（像素）",
+    "type": "int",
+    "default": 960
+  },
+  "dynmap_render_height": {
+    "description": "渲染地图高度（像素）",
+    "type": "int",
+    "default": 600
+  },
   "marker_radius": {
     "description": "玩家距离点标记多少格内显示位置名",
     "type": "float",
